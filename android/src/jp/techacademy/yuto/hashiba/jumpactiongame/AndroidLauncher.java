@@ -4,6 +4,7 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.RelativeLayout;
@@ -48,6 +49,7 @@ public class AndroidLauncher extends AndroidApplication implements ActivityReque
 		AndroidApplicationConfiguration config = new AndroidApplicationConfiguration();
 		View gameView = initializeForView(new JumpActionGame(this), config);
 
+		Log.d("hoge","hoge4");
 		mAdView = new AdView(this);
 		mAdView.setAdSize(AdSize.BANNER);
 		mAdView.setAdUnitId(getResources().getString(R.string.banner_ad_unit_id));
@@ -69,6 +71,9 @@ public class AndroidLauncher extends AndroidApplication implements ActivityReque
 		layout.addView(mAdView, params);
 
 		setContentView(layout);
+
+		Log.d("hoge","hoge3");
+
 	}
 
 	@Override

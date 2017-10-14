@@ -5,9 +5,12 @@ package jp.techacademy.yuto.hashiba.jumpactiongame;
  */
 
 
+import com.badlogic.gdx.Audio;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Preferences;
 import com.badlogic.gdx.ScreenAdapter;
+import com.badlogic.gdx.audio.Music;
+import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
@@ -21,6 +24,7 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+
 
 
 public class GameScreen extends ScreenAdapter {
@@ -52,6 +56,7 @@ public class GameScreen extends ScreenAdapter {
     Random mRandom;
     List<Step> mSteps;
     List<Star> mStars;
+    List<Enemy> mEnemies;
     Ufo mUfo;
     Player mPlayer;
 
@@ -65,7 +70,13 @@ public class GameScreen extends ScreenAdapter {
 
     Preferences mPrefs;
 
+    Music mMusic;
+    Sound mStarTouch, mEnemyTouch;
+
+
     public GameScreen(JumpActionGame game) {
+        Gdx.app.log("hoge", "hoge1");
+
         mGame = game;
 
         // 背景の準備
@@ -86,6 +97,7 @@ public class GameScreen extends ScreenAdapter {
         mRandom = new Random();
         mSteps = new ArrayList<Step>();
         mStars = new ArrayList<Star>();
+        mEnemies = new ArrayList<Enemy>();
         mGameState = GAME_STATE_READY;
 
         mTouchPoint = new Vector3();
@@ -98,8 +110,19 @@ public class GameScreen extends ScreenAdapter {
         mPrefs = Gdx.app.getPreferences("jp.techacademy.taro.kirameki.jumpactiongame"); // ←追加する
         mHighScore = mPrefs.getInteger("HIGHSCORE", 0);
 
+
+
+        mMusic = Gdx.audio.newMusic(Gdx.files.internal("BGM.mp3"));
+        mMusic.setVolume(1.0f);
+        mMusic.setLooping(true);
+        mMusic.play();
+
+        mStarTouch = Gdx.audio.newSound(Gdx.files.internal("Star.mp3"));
+        mEnemyTouch = Gdx.audio.newSound(Gdx.files.internal("Enemy.mp3"));
+
         createStage();
 
+        Gdx.app.log("hoge", "hoge2");
     }
 
     @Override
@@ -133,6 +156,12 @@ public class GameScreen extends ScreenAdapter {
             mStars.get(i).draw(mGame.batch);
         }
 
+
+        // Enemy
+        for (int i = 0; i < mEnemies.size(); i++) {
+            mEnemies.get(i).draw(mGame.batch);
+        }
+
         // UFO
         mUfo.draw(mGame.batch);
 
@@ -163,6 +192,7 @@ public class GameScreen extends ScreenAdapter {
         Texture starTexture = new Texture("star.png");
         Texture playerTexture = new Texture("uma.png");
         Texture ufoTexture = new Texture("ufo.png");
+        Texture enemyTexture = new Texture("enemy.png");
 
         // StepとStarをゴールの高さまで配置していく
         float y = 0;
@@ -170,6 +200,8 @@ public class GameScreen extends ScreenAdapter {
         float maxJumpHeight = Player.PLAYER_JUMP_VELOCITY * Player.PLAYER_JUMP_VELOCITY / (2 * -GRAVITY);
         while (y < WORLD_HEIGHT - 5) {
             int type = mRandom.nextFloat() > 0.8f ? Step.STEP_TYPE_MOVING : Step.STEP_TYPE_STATIC;
+            int enemyType = mRandom.nextFloat() > 0.9f ? Enemy.ENEMY_TYPE_MOVING : Enemy.ENEMY_TYPE_STATIC;
+
             float x = mRandom.nextFloat() * (WORLD_WIDTH - Step.STEP_WIDTH);
 
             Step step = new Step(type, stepTexture, 0, 0, 144, 36);
@@ -180,6 +212,12 @@ public class GameScreen extends ScreenAdapter {
                 Star star = new Star(starTexture, 0, 0, 72, 72);
                 star.setPosition(step.getX() + mRandom.nextFloat(), step.getY() + Star.STAR_HEIGHT + mRandom.nextFloat() * 3);
                 mStars.add(star);
+            }
+
+            if (mRandom.nextFloat() > 0.2f) {
+                Enemy enemy = new Enemy(enemyType, enemyTexture, 0, 0, 72, 72);
+                enemy.setPosition(x,y);
+                mEnemies.add(enemy);
             }
 
             y += (maxJumpHeight - 0.5f);
@@ -241,6 +279,10 @@ public class GameScreen extends ScreenAdapter {
         mPlayer.update(delta, accel);
         mHeightSoFar = Math.max(mPlayer.getY(), mHeightSoFar);
 
+        for (int i = 0; i < mEnemies.size(); i++) {
+            mEnemies.get(i).update(delta);
+        }
+
         checkCollision();
 
         checkGameOver();
@@ -250,6 +292,9 @@ public class GameScreen extends ScreenAdapter {
     private void updateGameOver() {
         if (Gdx.input.justTouched()) {
             mGame.setScreen(new ResultScreen(mGame, mScore));
+            mMusic.dispose();
+            mStarTouch.dispose();
+            mEnemyTouch.dispose();
         }
     }
 
@@ -270,12 +315,24 @@ public class GameScreen extends ScreenAdapter {
 
             if (mPlayer.getBoundingRectangle().overlaps(star.getBoundingRectangle())) {
                 star.get();
+                mStarTouch.play(1.0f);
                 mScore++; // ←追加する
                 if (mScore > mHighScore) {
                     mHighScore = mScore;
                     mPrefs.putInteger("HIGHSCORE", mHighScore);
                     mPrefs.flush();
                 }
+                break;
+            }
+        }
+
+        for (int i = 0; i < mEnemies.size(); i++) {
+            Enemy enemy = mEnemies.get(i);
+
+            if (mPlayer.getBoundingRectangle().overlaps(enemy.getBoundingRectangle())) {
+                mEnemyTouch.play(1.0f);
+                mEnemyTouch.dispose();
+                mGameState = GAME_STATE_GAMEOVER;
                 break;
             }
         }
